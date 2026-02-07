@@ -141,7 +141,7 @@ class WheatherApp(QWidget):
 
         self.get_weather_time_button.clicked.connect(self.get_weather)
     def get_weather(self):
-        api_key = "edd82bf56cd40475e9c211bff3bdb700"
+        api_key = "Your Api key"
         city = self.city_input.text().strip()
         
         if not city:
@@ -178,7 +178,7 @@ class WheatherApp(QWidget):
     def get_time(self, city):
         url = "https://api.ipgeolocation.io/timezone"
         params = {
-            "apiKey": "d2b9f626f5194dbaab5b3b988e7bcc0f",
+            "apiKey": "Your Api key",
             "city": city
         }
 
