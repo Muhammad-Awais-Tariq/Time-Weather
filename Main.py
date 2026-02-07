@@ -1,6 +1,7 @@
 import sys
 import requests
-from PyQt5.QtWidgets import QApplication , QWidget , QLabel , QLineEdit , QPushButton , QVBoxLayout
+from PyQt5.QtWidgets import QApplication , QWidget , QLabel , QLineEdit , QPushButton , QVBoxLayout 
+from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import Qt
 
 class WheatherApp(QWidget):
@@ -9,7 +10,7 @@ class WheatherApp(QWidget):
         self.city_label = QLabel("Enther city name: " , self)
         self.city_input = QLineEdit(self)
         self.get_weather_time_button = QPushButton("Get Weather and Time: " , self)
-        self.time_label = QLabel("08:17 AM" , self)
+        self.time_label = QLabel(self)
         self.temperature_label = QLabel( self)
         self.emoji_label = QLabel(self)
         self.description_label = QLabel(self)
@@ -21,6 +22,7 @@ class WheatherApp(QWidget):
 
     
         self.setWindowTitle("Time and Weather")
+        self.setWindowIcon(QIcon("Icon.png"))
 
         vbox = QVBoxLayout()
 
@@ -50,99 +52,197 @@ class WheatherApp(QWidget):
         self.description_label.setObjectName("description_label")
 
         self.setStyleSheet("""
+            QWidget {
+                background-color: #020617;
+            }
 
-            QLabel , QpushButton{
-                        font-family : calibri;      
-                            }
-            QLabel#city_label{
-                        font-size : 40px;
-                        font-style : italic;   
-                           }
-            QLineEdit#city_input{
-                        font-size : 40px;   
-                           }
-            QPushButton#get_weather_time_button{
-                        font-size : 30px;   
-                        font-weight : bold;
-                           }
-            QLabel#temperature_label{
-                        font-size : 75px;    
-                           }              
-            QLabel#time_label{
-                        font-size : 75px;    
-                           } 
-            QLabel#emoji_label{
-                        font-size : 100px;  
-                        font-family : Segoe UI emoji;    
-                           }
-            QLabel#description_label{
-                        font-size : 50px;   
-                           }
-        """
+            QLabel {
+                color: white;
+                font-family: Comic Sans MS;
+            }
 
-        )
+            QLineEdit#city_input {
+                background-color: #222;
+                color: white;
+                border: 2px solid #444;
+                border-radius: 10px;
+                padding: 10px 14px;
+                font-size: 36px;
+            }
+
+            QLineEdit#city_input:focus {
+                border: 2px solid #00ffcc;
+            }
+
+            QPushButton#get_weather_time_button {
+                background-color: #16a34a;
+                color: white;
+                border: none;
+                border-radius: 22px;
+                padding: 14px 14px;
+                font-size: 32px;
+                font-family: Arial;
+                font-weight: bold;
+                min-height: 40px;
+                min-width: 340px;
+            }
+
+            QPushButton#get_weather_time_button:hover {
+                background-color: #15803d;
+            }
+
+            QPushButton#get_weather_time_button:pressed {
+                background-color: #166534;
+            }
+
+            QLabel#time_label {
+                font-size: 90px;
+                color: #a5f3fc;
+                font-family: Arial;
+                font-weight: bold;
+                background: transparent;
+            }
+
+            QLabel#temperature_label {
+                font-size: 110px;
+                color: #7dd3fc;
+                font-family: Arial;
+                font-weight: bold;
+                background: transparent;
+            }
+
+            QLabel#emoji_label {
+                font-size: 140px;
+                min-height: 160px;
+                background: transparent;
+                font-family: Segoe UI Emoji, sans-serif;
+            }
+
+            QLabel#description_label {
+                font-size: 54px;
+                color: #e5e7eb;
+                font-style: italic;
+                background: transparent;
+            }
+
+            QLabel#city_label {
+                font-size: 44px;
+                font-style: italic;
+                color: #cbd5e1;
+                background: transparent;
+            }
+
+            /* Error state override example */
+            QLabel#temperature_label[error="true"] {
+                font-size: 52px;
+                color: #f87171;
+            }
+        """)
 
         self.get_weather_time_button.clicked.connect(self.get_weather)
-        self.get_weather_time_button.clicked.connect(self.get_time)
     def get_weather(self):
-        
         api_key = "edd82bf56cd40475e9c211bff3bdb700"
-        city = self.city_input.text()
+        city = self.city_input.text().strip()
+        
+        if not city:
+            self.display_error("Please enter a city name")
+            return
 
-        url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}"
+        url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
+        
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=10)
             response.raise_for_status()
             data = response.json()
 
-            if data["cod"] == 200:
-                self.display_weather(data)
-        except requests.exceptions.HTTPError as http_error:
-            match response.status_code:
-                case 400:
-                    self.display_error("Bad request:\nPlease check your input")
-                case 401:
-                    self.display_error("Unauthorized:\nInvalid Api Key")
-                case 403:
-                    self.display_error("Forbidden:\nAccess is denied")
-                case 404:
-                    self.display_error("Not Found:\nCity not found")
-                case 500:
-                    self.display_error("Internal Server Error:\nPlease try again later")
-                case 502:
-                    self.display_error("Bad Gateway:\nInvalid response from the server")
-                case 503:
-                    self.display_error("Service Unavailable:\nServer is down")
-                case 504:
-                    self.display_error("Gateway Timeout:\nNo response from the server")
-                case _:
-                    self.display_error(f"Http error occured\n{http_error}")
+            if data.get("cod") != 200:
+                self.display_error("City not found")
+                return
+
+            self.display_weather(data)
+            self.get_time(city)          
+
+        except requests.exceptions.HTTPError as e:
+            if response.status_code == 404:
+                self.display_error("City not found")
+            else:
+                self.display_error(f"HTTP error: {response.status_code}")
         except requests.exceptions.ConnectionError:
-            self.display_error("Connection Error:\nCheck your Internet connection")
+            self.display_error("No internet connection")
         except requests.exceptions.Timeout:
-            self.display_error("Timeout Error:\nThe request timed out")
-        except requests.exceptions.TooManyRedirects:
-            self.display_error("Too many Redirects:\nCheck the URL")
-        except requests.exceptions.RequestException as req_error:
-            self.display_error(f"Redirect Error:\n{req_error}")
+            self.display_error("Request timed out")
+        except Exception as e:
+            self.display_error("Something went wrong")
 
 
-    def get_time(self):
-        city = self.city_input.text().lower()
+    def get_time(self, city):
+        url = "https://api.ipgeolocation.io/timezone"
+        params = {
+            "apiKey": "d2b9f626f5194dbaab5b3b988e7bcc0f",
+            "city": city
+        }
 
-    def display_error(self , message):
-        self.temperature_label.setStyleSheet("font-size: 30px;")
+        try:
+            res = requests.get(url, params=params, timeout=10)
+            res.raise_for_status()
+            data = res.json()
+
+            if "message" in data or "error" in data:
+                return
+
+            self.display_time(data)
+
+        except Exception:
+            pass
+
+
+    def display_error(self, message):
+        self.temperature_label.setStyleSheet("font-size: 40px;")
         self.temperature_label.setText(message)
+        self.time_label.hide()               
+        self.emoji_label.clear()
+        self.description_label.clear()
 
     def display_weather(self , data):
+        self.time_label.show()
         self.temperature_label.setStyleSheet("font-size: 75px;")
-        temprature_k = data["main"]["temp"]
-        temprature_c = temprature_k - 273.15
+        weather_description = data["weather"][0]["description"]
+        weather_id = data["weather"][0]["id"]
 
-        self.temperature_label.setText(f"{temprature_c:.0f}°C")
+        self.description_label.setText(weather_description)
+        self.emoji_label.setText(self.get_weather_emoji(weather_id))
+        self.temperature_label.setText(f"{data['main']['temp']:.0f}°C")
+    
 
     def display_time (self , data):
-        pass   
+        self.time_label.setStyleSheet("font-size: 75px;")
+        time = data["time_24"][:5]
+        self.time_label.setText(time)
+
+    @staticmethod
+    def get_weather_emoji(weather_id):
+        if 200 <= weather_id <=232:
+            return"⚡"
+        elif 300 <= weather_id <=321:
+            return"⛅"
+        elif 500 <= weather_id <=531:
+            return"☔"
+        elif 600 <= weather_id <=622:
+            return"⛄"
+        elif 701 <= weather_id <=741:
+            return"🍃"
+        elif weather_id == 762:
+            return"🌋"
+        elif weather_id == 771:
+            return"💨"
+        elif weather_id == 781:
+            return"🌪"
+        elif weather_id == 800:
+            return"🌞"
+        elif 801 <= weather_id <=804:
+            return"☁"
+        else:
+            return""
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     wheather_app = WheatherApp()
